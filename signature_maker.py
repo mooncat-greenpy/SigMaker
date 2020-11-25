@@ -20,15 +20,21 @@ def make_sig_table(path, offset, size, sig_table):
             sig_table[i][data[i]]["paths"].append(path)
 
 
-def make_signature(sig_table):
+def make_signature(sig_table, filt_num=0):
     signature = ""
     for i in sig_table:
-        if len(i) == 1:
-            signature += "%02x" % int(list(i.keys())[0])
-        elif len(i) > 1:
-            signature += "??"
+        value = -1
+        for j in i:
+            if i[j]["count"] > filt_num and value == -1:
+                value = int(j)
+            elif i[j]["count"] > filt_num:
+                value = -1
+                break
+
+        if value >= 0:
+            signature += "%02x" % value
         else:
-            return signature
+            signature += "??"
     return signature
 
 
