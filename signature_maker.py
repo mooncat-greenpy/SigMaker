@@ -20,28 +20,66 @@ def make_sig_table(path, offset, size, sig_table):
             sig_table[i][data[i]]["paths"].append(path)
 
 
-def make_signature(sig_table, min_file_num):
+signature_list=[]
+max_paths=0
+def make_signature_recur(sig_table, index, signature, paths):
+    global signature_list
+    global max_paths
+    if len(sig_table)<=index:
+        if len(paths)>= max_paths:
+            signature_list.append((signature, paths))
+            max_paths=len(paths)
+        return (signature, paths)
+    for i in sig_table[index]:
+        if len(list(set(paths) & set(sig_table[index][i]["paths"])))<=1:
+            continue
+        if len(paths)>= max_paths:
+            make_signature_recur(sig_table, index+1, "%s%02x" % (signature, int(i)), list(set(paths) & set(sig_table[index][i]["paths"])))
+
+    if len(paths)> max_paths:
+        make_signature_recur(sig_table, index+1, "%s??" % (signature), paths)
+
+
+def make_signature_full(sig_table):
+    global signature_list
+    paths=[]
+    for i in sig_table[0]:
+        paths.extend(sig_table[0][i]["paths"])
+
+    make_signature_recur(sig_table, 0, "", paths)
+
+    return signature_list
+
+
+def make_signature_light(sig_table, min_file_num):
     signature = ""
-    paths = []
+    paths=[]
     for i in sig_table:
         value = -1
-        tmp_max_num = 0
+        tmp_max_num=0
         for j in i:
             if len(paths):
-                tmp_paths = list(set(i[j]["paths"]) & set(paths))
+                tmp_paths=list(set(i[j]["paths"]) & set(paths))
             else:
-                tmp_paths = i[j]["paths"]
+                tmp_paths=i[j]["paths"]
 
-            if len(tmp_paths) > min_file_num and len(tmp_paths) > tmp_max_num:
+            if len(tmp_paths) > min_file_num and len(tmp_paths)>tmp_max_num:
                 value = int(j)
-                tmp_max_num = len(tmp_paths)
-                paths = tmp_paths
+                tmp_max_num=len(tmp_paths)
+                paths=tmp_paths
 
         if value >= 0:
             signature += "%02x" % value
         else:
             signature += "??"
-    return signature
+    return [(signature, paths)]
+
+
+def make_signature(sig_table, option="full", min_file_num=0):
+    if option=="full":
+        return make_signature_full(sig_table)
+    if option=="light":
+        return make_signature_light(sig_table, min_file_num)
 
 
 def init_sig_table(size):
@@ -58,7 +96,7 @@ def get_pe_entry_point_offset(path):
     return physical_ep
 
 
-def get_signature(path, get_offset_callback, min_file_num):
+def get_signature(path, get_offset_callback, option, min_file_num=0):
     size = 0x20
     sig_table = init_sig_table(size)
 
@@ -66,7 +104,7 @@ def get_signature(path, get_offset_callback, min_file_num):
     if os.path.exists(json_path):
         with open(json_path, "r") as f:
             sig_table = json.load(f)
-        return make_signature(sig_table, min_file_num)
+        return make_signature(sig_table, option=option,min_file_num=min_file_num)
 
     for i in os.listdir(path):
         new_path = os.path.join(path, i)
@@ -76,19 +114,22 @@ def get_signature(path, get_offset_callback, min_file_num):
     with open(json_path, "w") as f:
         json.dump(sig_table, f, indent=4)
 
-    return make_signature(sig_table, min_file_num)
+    return make_signature(sig_table, option=option,min_file_num=min_file_num)
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python signature_maker.py path [min file num]")
+        print("Usage: python signature_maker.py path [option] [min file num]")
         exit()
     path = sys.argv[1]
-    min_file_num = 0
-    if len(sys.argv) >= 3 and sys.argv[2].isdigit():
-        min_file_num = int(sys.argv[2])
+    option="full"
+    if len(sys.argv) >= 3:
+        option=sys.argv[2]
+    min_file_num=0
+    if len(sys.argv) >= 4 and sys.argv[3].isdigit():
+        min_file_num=int(sys.argv[3])
     callback = get_pe_entry_point_offset
-    signature = get_signature(path, callback, min_file_num)
+    signatures = get_signature(path, callback, option, min_file_num)
 
-    print(path)
-    print(signature)
+    for i in signatures:
+        print(i[0],"  ",len(i[1]))
