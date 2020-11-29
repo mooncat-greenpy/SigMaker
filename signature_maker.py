@@ -4,7 +4,7 @@ import sys
 import json
 
 
-def make_sig_table(path, offset, size, sig_table):
+def make_dataset_table(path, offset, size, dataset_table):
     if os.path.getsize(path) <= offset:
         return
     f = open(path, "rb")
@@ -13,55 +13,55 @@ def make_sig_table(path, offset, size, sig_table):
     f.close()
 
     for i in range(len(data)):
-        if data[i] not in sig_table[i]:
-            sig_table[i][data[i]] = {"count": 1, "paths": [path]}
+        if data[i] not in dataset_table[i]:
+            dataset_table[i][data[i]] = {"count": 1, "paths": [path]}
         else:
-            sig_table[i][data[i]]["count"] += 1
-            sig_table[i][data[i]]["paths"].append(path)
+            dataset_table[i][data[i]]["count"] += 1
+            dataset_table[i][data[i]]["paths"].append(path)
 
 
 signature_list = []
 max_paths = 0
 
 
-def make_signature_recur(sig_table, index, signature, paths):
+def make_signature_recur(dataset_table, index, signature, paths):
     global signature_list
     global max_paths
-    if len(sig_table) <= index:
+    if len(dataset_table) <= index:
         if len(paths) >= max_paths:
             signature_list.append((signature, paths))
             max_paths = len(paths)
         return (signature, paths)
-    for i in sig_table[index]:
-        if len(list(set(paths) & set(sig_table[index][i]["paths"]))) <= 1:
+    for i in dataset_table[index]:
+        if len(list(set(paths) & set(dataset_table[index][i]["paths"]))) <= 1:
             continue
         if len(paths) >= max_paths:
             make_signature_recur(
-                sig_table,
+                dataset_table,
                 index + 1,
                 "%s%02x" % (signature, int(i)),
-                list(set(paths) & set(sig_table[index][i]["paths"])),
+                list(set(paths) & set(dataset_table[index][i]["paths"])),
             )
 
     if len(paths) > max_paths:
-        make_signature_recur(sig_table, index + 1, "%s??" % (signature), paths)
+        make_signature_recur(dataset_table, index + 1, "%s??" % (signature), paths)
 
 
-def make_signature_full(sig_table):
+def make_signature_full(dataset_table):
     global signature_list
     paths = []
-    for i in sig_table[0]:
-        paths.extend(sig_table[0][i]["paths"])
+    for i in dataset_table[0]:
+        paths.extend(dataset_table[0][i]["paths"])
 
-    make_signature_recur(sig_table, 0, "", paths)
+    make_signature_recur(dataset_table, 0, "", paths)
 
     return signature_list
 
 
-def make_signature_light(sig_table, min_file_num):
+def make_signature_light(dataset_table, min_file_num):
     signature = ""
     paths = []
-    for i in sig_table:
+    for i in dataset_table:
         value = -1
         tmp_max_num = 0
         for j in i:
@@ -82,18 +82,18 @@ def make_signature_light(sig_table, min_file_num):
     return [(signature, paths)]
 
 
-def make_signature(sig_table, option="full", min_file_num=0):
+def make_signature(dataset_table, option="full", min_file_num=0):
     if option == "full":
-        return make_signature_full(sig_table)
+        return make_signature_full(dataset_table)
     if option == "light":
-        return make_signature_light(sig_table, min_file_num)
+        return make_signature_light(dataset_table, min_file_num)
 
 
-def init_sig_table(size):
-    sig_table = []
+def init_dataset_table(size):
+    dataset_table = []
     for i in range(size):
-        sig_table.append({})
-    return sig_table
+        dataset_table.append({})
+    return dataset_table
 
 
 def get_pe_entry_point_offset(path):
@@ -103,32 +103,32 @@ def get_pe_entry_point_offset(path):
     return physical_ep
 
 
-def collect_dataset_recur(path, get_offset_callback, sig_table, size):
+def collect_dataset_recur(path, get_offset_callback, dataset_table, size):
     for i in os.listdir(path):
         new_path = os.path.join(path, i)
         if os.path.isdir(new_path):
-            collect_dataset_recur(new_path, get_offset_callback, sig_table, size)
+            collect_dataset_recur(new_path, get_offset_callback, dataset_table, size)
         else:
             offset = get_offset_callback(new_path)
-            make_sig_table(new_path, offset, size, sig_table)
+            make_dataset_table(new_path, offset, size, dataset_table)
 
 
 def get_signature(path, get_offset_callback, option, min_file_num=0):
     size = 0x20
-    sig_table = init_sig_table(size)
+    dataset_table = init_dataset_table(size)
 
     json_path = os.path.basename(path) + ".json"
     if os.path.exists(json_path):
         with open(json_path, "r") as f:
-            sig_table = json.load(f)
-        return make_signature(sig_table, option=option, min_file_num=min_file_num)
+            dataset_table = json.load(f)
+        return make_signature(dataset_table, option=option, min_file_num=min_file_num)
 
-    collect_dataset_recur(path, get_offset_callback, sig_table, size)
+    collect_dataset_recur(path, get_offset_callback, dataset_table, size)
 
     with open(json_path, "w") as f:
-        json.dump(sig_table, f, indent=4)
+        json.dump(dataset_table, f, indent=4)
 
-    return make_signature(sig_table, option=option, min_file_num=min_file_num)
+    return make_signature(dataset_table, option=option, min_file_num=min_file_num)
 
 
 if __name__ == "__main__":
