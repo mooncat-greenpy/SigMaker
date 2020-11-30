@@ -76,17 +76,20 @@ class SigMaker:
         self.signature_list = [(signature, paths)]
         return self.signature_list
 
-    def make_dataset(self, path, get_offset_callback, use_json=True):
+    def make_dataset(self, path, get_offset_callback):
         self.init_dataset_table()
-
-        json_path = os.path.basename(path) + ".json"
-        if use_json and os.path.exists(json_path):
-            with open(json_path, "r") as f:
-                self.dataset_table = json.load(f)
-                return
-
         self.collect_dataset_recur(path, get_offset_callback)
 
+    def add_dataset(self, path, get_offset_callback):
+        self.collect_dataset_recur(path, get_offset_callback)
+
+    def load_dataset(self, json_path):
+        if not os.path.exists(json_path):
+            return
+        with open(json_path, "r") as f:
+            self.dataset_table = json.load(f)
+
+    def save_dataset(self, json_path):
         with open(json_path, "w") as f:
             json.dump(self.dataset_table, f, indent=4)
 
