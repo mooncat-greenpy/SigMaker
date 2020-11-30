@@ -105,7 +105,7 @@ class SigMaker:
                 self.make_dataset_table(new_path, offset)
 
     def make_dataset_table(self, path, offset):
-        if os.path.getsize(path) <= offset:
+        if offset == None or os.path.getsize(path) <= offset:
             return
         f = open(path, "rb")
         f.seek(offset)
@@ -120,10 +120,15 @@ class SigMaker:
                 self.dataset_table[i][data[i]]["paths"].append(path)
 
 
+# Return file offset or None
 def get_pe_entry_point_offset(path):
-    pe = pefile.PE(path)
-    physical_ep = pe.get_physical_by_rva(pe.OPTIONAL_HEADER.AddressOfEntryPoint)
-    pe.close()
+    physical_ep = None
+    try:
+        pe = pefile.PE(path)
+        physical_ep = pe.get_physical_by_rva(pe.OPTIONAL_HEADER.AddressOfEntryPoint)
+        pe.close()
+    except Exception:
+        physical_ep = None
     return physical_ep
 
 
