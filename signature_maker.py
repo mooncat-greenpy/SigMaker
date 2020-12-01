@@ -124,15 +124,29 @@ class SigMaker:
 
 
 # Return file offset or None
-def get_pe_entry_point_offset(path):
+def get_pe_entry_point_offset(path, machine):
     physical_ep = None
     try:
         pe = pefile.PE(path)
+        if not pe.FILE_HEADER.Machine == pefile.MACHINE_TYPE[machine]:
+            return None
         physical_ep = pe.get_physical_by_rva(pe.OPTIONAL_HEADER.AddressOfEntryPoint)
         pe.close()
     except Exception:
         physical_ep = None
     return physical_ep
+
+
+def get_pe_i386_entry_point_offset(path):
+    return get_pe_entry_point_offset(path, "IMAGE_FILE_MACHINE_I386")
+
+
+def get_pe_ia64_entry_point_offset(path):
+    return get_pe_entry_point_offset(path, "IMAGE_FILE_MACHINE_IA64")
+
+
+def get_pe_amd64_entry_point_offset(path):
+    return get_pe_entry_point_offset(path, "IMAGE_FILE_MACHINE_AMD64")
 
 
 if __name__ == "__main__":
@@ -146,7 +160,7 @@ if __name__ == "__main__":
     min_file_num = 0
     if len(sys.argv) >= 4 and sys.argv[3].isdigit():
         min_file_num = int(sys.argv[3])
-    callback = get_pe_entry_point_offset
+    callback = get_pe_i386_entry_point_offset
     sig_maker = SigMaker(option, min_file_num)
     sig_maker.make_dataset(path, callback)
     signatures = sig_maker.make_signature()
