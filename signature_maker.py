@@ -2,6 +2,14 @@ import pefile
 import os
 import sys
 import json
+from logging import basicConfig, getLogger, DEBUG, INFO, WARN, ERROR, CRITICAL
+
+basicConfig(
+    format="[%(asctime)s] %(name)s %(levelname)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=WARN,
+)
+logger = getLogger("SigMaker")
 
 
 class SigMaker:
@@ -85,6 +93,7 @@ class SigMaker:
 
     def load_dataset(self, json_path):
         if not os.path.exists(json_path):
+            logger.warning("No such a file %s" % path)
             return
         with open(json_path, "r") as f:
             self.dataset_table = json.load(f)
@@ -109,6 +118,7 @@ class SigMaker:
 
     def make_dataset_table(self, path, offset):
         if offset == None or os.path.getsize(path) <= offset:
+            logger.warning("Offset is invalid")
             return
         f = open(path, "rb")
         f.seek(offset)
@@ -129,10 +139,12 @@ def get_pe_entry_point_offset(path, machine):
     try:
         pe = pefile.PE(path)
         if not pe.FILE_HEADER.Machine == pefile.MACHINE_TYPE[machine]:
+            logger.warning("%s machine is not %s" % (path, machine))
             return None
         physical_ep = pe.get_physical_by_rva(pe.OPTIONAL_HEADER.AddressOfEntryPoint)
         pe.close()
-    except Exception:
+    except Exception as e:
+        logger.error(e.__str__())
         physical_ep = None
     return physical_ep
 
