@@ -161,6 +161,10 @@ def get_pe_amd64_entry_point_offset(path):
     return get_pe_entry_point_offset(path, "IMAGE_FILE_MACHINE_AMD64")
 
 
+def get_zero_offset(path):
+    return 0
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python signature_maker.py path [option] [min file num]")
