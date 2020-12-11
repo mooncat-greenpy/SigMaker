@@ -2,6 +2,7 @@ import pefile
 import os
 import sys
 import json
+from elftools.elf.elffile import ELFFile
 from logging import basicConfig, getLogger, DEBUG, INFO, WARN, ERROR, CRITICAL
 
 basicConfig(
@@ -159,6 +160,19 @@ def get_pe_ia64_entry_point_offset(path):
 
 def get_pe_amd64_entry_point_offset(path):
     return get_pe_entry_point_offset(path, "IMAGE_FILE_MACHINE_AMD64")
+
+
+def get_elf_entry_point_offset(path):
+    physical_ep = None
+    try:
+        with open(path, "rb") as f:
+            elf = ELFFile(f)
+            physical_ep = elf._parse_elf_header().e_entry
+            physical_ep -= elf.get_segment(0).header.p_vaddr
+    except Exception as e:
+        logger.error(e.__str__())
+        physical_ep = None
+    return physical_ep
 
 
 def get_zero_offset(path):
